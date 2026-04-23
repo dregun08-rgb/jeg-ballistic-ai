@@ -1,0 +1,4 @@
+import streamlit as st
+st.set_page_config(page_title="JEG BALLISTIC AI", layout="wide")
+st.title("🎯 JEG BALLISTIC AI")
+st.write("App is working correctly!")
