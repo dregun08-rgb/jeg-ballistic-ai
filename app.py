@@ -148,6 +148,74 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────
+# PASSWORD GATE
+# ─────────────────────────────────────────────
+import os
+
+def check_password():
+    """Returns True if password is correct."""
+    # Get password from Streamlit secrets or environment
+    correct_password = st.secrets.get("APP_PASSWORD", os.environ.get("APP_PASSWORD", "JEGballistic2026"))
+
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if st.session_state.authenticated:
+        return True
+
+    # Password screen
+    st.markdown("""
+    <style>
+    .login-container {
+        max-width: 420px;
+        margin: 8vh auto;
+        padding: 40px;
+        background: #0d1120;
+        border: 1px solid #1e2a3a;
+        border-radius: 12px;
+        text-align: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("""
+        <div style="text-align:center; padding:40px 0 20px 0;">
+            <div style="font-family:'Orbitron',sans-serif; font-size:0.5rem; color:#475569; letter-spacing:0.4em; text-transform:uppercase;">JEG Securities</div>
+            <div style="font-family:'Orbitron',sans-serif; font-size:2rem; font-weight:900;
+                 background:linear-gradient(90deg,#00ff88 0%,#00b4ff 60%,#8b5cf6 100%);
+                 -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+                 letter-spacing:0.04em; margin:8px 0;">BALLISTIC AI</div>
+            <div style="font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:#475569; letter-spacing:0.2em;">GAMMA RECLAIM ENGINE v6 · CLASSIFIED</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        password = st.text_input("Access Code", type="password", placeholder="Enter access code...", label_visibility="collapsed")
+        login_btn = st.button("⚡ AUTHENTICATE", use_container_width=True)
+
+        if login_btn:
+            if password == correct_password:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("❌ Invalid access code. Contact JEG Securities for access.")
+
+        st.markdown("""
+        <div style="font-family:'Share Tech Mono',monospace; font-size:0.58rem; color:#2d3f55;
+             text-align:center; margin-top:24px; letter-spacing:0.1em;">
+            JEG SECURITIES · INTERNAL USE ONLY · UNAUTHORIZED ACCESS PROHIBITED
+        </div>
+        """, unsafe_allow_html=True)
+
+    return False
+
+if not check_password():
+    st.stop()
+
+
+
+# ─────────────────────────────────────────────
 # CUSTOM CSS
 # ─────────────────────────────────────────────
 st.markdown("""
@@ -1484,13 +1552,14 @@ st.markdown('<div style="margin-bottom:10px;"></div>', unsafe_allow_html=True)
 # ─────────────────────────────────────────────
 # TABS
 # ─────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🎯  WATCHLIST",
     "🔥  MA RECLAIM",
     "📰  SENTIMENT",
     "⚡  GAMMA MAP",
     "📊  BREAKDOWN",
     "🔍  DETAIL",
+    "🎯  ENTRY DECISION",
     "📱  MOBILE + ALERTS",
     "📡  E*TRADE PRO",
 ])
@@ -1532,6 +1601,96 @@ with tab1:
         csv = scan_df[display_cols].to_csv(index=False)
         st.download_button("⬇ Export Watchlist CSV", csv, f"jeg_ballistic_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
 
+
+# ══════════════════════════════════════════════
+# TAB 2 — MA RECLAIM BREAKOUT (TSEM-Style)
+# ══════════════════════════════════════════════
+with tab2:
+    st.markdown("""<div style="padding:4px 0 12px 0;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:0.9rem;font-weight:700;color:#00ff88;letter-spacing:0.08em;">🔥 MA RECLAIM BREAKOUT SCANNER</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#475569;margin-top:4px;letter-spacing:0.1em;">EMA20 CROSS · MACD BULL · RSI MOMENTUM · VOLUME EXPANSION — The TSEM Pattern</div>
+    </div>""", unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="background:#0d1120;border:1px solid #00ff8833;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:#00ff88;letter-spacing:0.1em;margin-bottom:12px;">◈ WHAT THIS SCANS FOR</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:#94a3b8;line-height:1.8;">
+            <div><b style="color:#00ff88;">① EMA20 crosses above SMA50</b><br>The MA reclaim — the core trigger. Algos react immediately.</div>
+            <div><b style="color:#ffb800;">② MACD bullish cross + rising histogram</b><br>Momentum confirmation. Trend is accelerating not fading.</div>
+            <div><b style="color:#00b4ff;">③ RSI in 50–72 zone</b><br>Above 50 = buyers in control. Below 72 = still has room to run.</div>
+            <div><b style="color:#8b5cf6;">④ Volume 1.5x+ average</b><br>Institutional participation. Weak volume breakouts fail.</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if len(scan_df) == 0:
+        st.info("Run a scan first — click ⚡ FIRE SCAN in the sidebar.")
+    elif "MA Reclaim" not in scan_df.columns:
+        st.warning("MA Reclaim column not found — please restart the app.")
+    else:
+        reclaim_df = scan_df[scan_df["MA Reclaim"] == "🔥 MA RECLAIM BREAKOUT"].copy()
+
+        if len(reclaim_df) == 0:
+            # Show all tickers with pattern scores even if not fully active
+            st.info("No full MA Reclaim Breakouts in current scan. Showing highest pattern scores below.")
+            if "Pattern Score" in scan_df.columns:
+                top_patterns = scan_df.nlargest(10, "Pattern Score")[["Ticker","Price","SCORE","Pattern Score","RSI","MACD","Rel Vol","MA Reclaim","Trade Idea"]]
+                st.dataframe(top_patterns, use_container_width=True, height=350)
+        else:
+            st.markdown(f"""<div style="background:#0d1a0d;border:1px solid #00ff8844;border-radius:6px;padding:10px 16px;margin-bottom:16px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:#00ff88;">
+                🔥 {len(reclaim_df)} MA RECLAIM BREAKOUT SETUP{"S" if len(reclaim_df)>1 else ""} DETECTED
+            </div>""", unsafe_allow_html=True)
+
+            # Top cards
+            top_r = reclaim_df.head(5)
+            rcols = st.columns(min(5, len(top_r)))
+            for i, (_, row) in enumerate(top_r.iterrows()):
+                sc = "#00ff88" if row["SCORE"] >= 85 else "#ffb800" if row["SCORE"] >= 70 else "#00b4ff"
+                rsi_val = row.get("RSI", 0)
+                rsi_c = "#00ff88" if 50 < rsi_val < 65 else "#ffb800" if rsi_val < 72 else "#ff3366"
+                with rcols[i]:
+                    st.markdown(f"""
+                    <div style="background:#0d1120;border:1px solid {sc}55;border-radius:8px;padding:14px 12px;text-align:center;">
+                        <div style="font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:900;color:{sc};">{row['Ticker']}</div>
+                        <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#94a3b8;">${row['Price']:.2f}</div>
+                        <div style="font-family:'Orbitron',sans-serif;font-size:1.3rem;font-weight:900;color:{sc};margin:6px 0;">{row['SCORE']:.1f}</div>
+                        <div style="font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:#475569;margin-bottom:8px;">SCORE</div>
+                        <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#94a3b8;">RSI: <b style="color:{rsi_c};">{rsi_val}</b></div>
+                        <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#94a3b8;">MACD: <b style="color:#00ff88;">{row.get('MACD','—')}</b></div>
+                        <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#94a3b8;">Vol: <b style="color:#00b4ff;">×{row['Rel Vol']:.1f}</b></div>
+                        <div style="font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:#8b5cf6;margin-top:6px;">Pattern: {row.get('Pattern Score','—')}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown('<div style="margin-top:16px;"></div>', unsafe_allow_html=True)
+            st.markdown('<p style="font-family:\'Share Tech Mono\',monospace;font-size:0.65rem;color:#00b4ff;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px;">◈ FULL RECLAIM RESULTS</p>', unsafe_allow_html=True)
+            avail = [c for c in ["Ticker","Price","Breakout","EMA20","SMA50","MACD","RSI","Rel Vol","Pattern Score","SCORE","Sentiment Label","Trade Idea"] if c in reclaim_df.columns]
+            st.dataframe(reclaim_df[avail], use_container_width=True, height=300)
+
+            # RSI vs Pattern Score scatter
+            if len(reclaim_df) > 1 and "RSI" in reclaim_df.columns and "Pattern Score" in reclaim_df.columns:
+                fig_rp = go.Figure()
+                fig_rp.add_trace(go.Scatter(
+                    x=reclaim_df["RSI"], y=reclaim_df["Pattern Score"],
+                    mode="markers+text", text=reclaim_df["Ticker"],
+                    textposition="top center",
+                    textfont=dict(family="Share Tech Mono", size=9, color="#e2e8f0"),
+                    marker=dict(color=reclaim_df["SCORE"],
+                        colorscale=[[0,"#00b4ff"],[0.5,"#ffb800"],[1,"#00ff88"]],
+                        size=12, opacity=0.85, line=dict(color="#060810", width=1))
+                ))
+                fig_rp.add_vrect(x0=50, x1=72, fillcolor="rgba(0,255,136,0.05)",
+                    line=dict(color="#00ff88", width=1, dash="dot"),
+                    annotation_text="Sweet Spot RSI 50-72",
+                    annotation_font=dict(family="Share Tech Mono", size=9, color="#00ff88"))
+                fig_rp.update_layout(
+                    template="plotly_dark", paper_bgcolor="#060810", plot_bgcolor="#0a0d1a",
+                    title=dict(text="RSI vs Pattern Score — TSEM-Style Setup Finder",
+                               font=dict(family="Orbitron", size=12, color="#e2e8f0")),
+                    xaxis=dict(title="RSI (14)", gridcolor="#1e2a3a", color="#94a3b8", range=[30,85]),
+                    yaxis=dict(title="Pattern Score", gridcolor="#1e2a3a", color="#94a3b8", range=[0,105]),
+                    height=380, margin=dict(t=50,b=50,l=60,r=20))
+                st.plotly_chart(fig_rp, use_container_width=True)
 
 # ══════════════════════════════════════════════
 # TAB 2 — SENTIMENT (NEW)
@@ -1870,9 +2029,290 @@ with tab6:
 
 
 # ══════════════════════════════════════════════
-# TAB 6 — MOBILE + ALERTS
+# TAB 7 — ENTRY DECISION ENGINE
 # ══════════════════════════════════════════════
 with tab7:
+    st.markdown("""<div style="padding:4px 0 12px 0;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:0.9rem;font-weight:700;color:#ffb800;letter-spacing:0.08em;">🎯 ENTRY DECISION ENGINE</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#475569;margin-top:4px;letter-spacing:0.1em;">SUPPORT · RESISTANCE · EMA9/20/50 · RSI · MACD · ATR · ADD NOW OR WAIT?</div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Ticker selector ──
+    ed_col1, ed_col2 = st.columns([2, 1])
+    with ed_col1:
+        if len(scan_df) > 0:
+            ed_ticker = st.selectbox("Select ticker for entry analysis",
+                                     scan_df["Ticker"].tolist(),
+                                     key="ed_ticker_sel")
+        else:
+            ed_ticker = st.text_input("Enter ticker symbol", value="NVDA", key="ed_ticker_input").upper()
+
+    with ed_col2:
+        ed_days = st.selectbox("Price history (days)", [30, 60, 90], index=1, key="ed_days")
+
+    if st.button("🎯 ANALYZE ENTRY", use_container_width=True, key="btn_entry"):
+        # ── Build OHLCV from Polygon or simulate realistic history ──
+        with st.spinner(f"Analyzing {ed_ticker}..."):
+
+            ohlcv_df = None
+
+            # Try Polygon if API key available
+            if api_key and REQUESTS_OK:
+                try:
+                    end_date   = datetime.now().strftime("%Y-%m-%d")
+                    start_date = (datetime.now() - timedelta(days=ed_days + 10)).strftime("%Y-%m-%d")
+                    url = f"https://api.polygon.io/v2/aggs/ticker/{ed_ticker}/range/1/day/{start_date}/{end_date}?adjusted=true&sort=asc&limit=120&apiKey={api_key}"
+                    r = requests.get(url, timeout=10)
+                    if r.status_code == 200:
+                        results = r.json().get("results", [])
+                        if results:
+                            ohlcv_df = pd.DataFrame(results)
+                            ohlcv_df = ohlcv_df.rename(columns={"o":"open","h":"high","l":"low","c":"close","v":"volume"})
+                            ohlcv_df = ohlcv_df[["open","high","low","close","volume"]]
+                except Exception:
+                    pass
+
+            # Fallback: simulate realistic OHLCV from universe base price
+            if ohlcv_df is None or len(ohlcv_df) < 20:
+                base = UNIVERSE.get(ed_ticker, 100.0)
+                rng_ed = np.random.RandomState(abs(hash(ed_ticker)) % 99999)
+                n = ed_days
+                # Random walk with slight upward drift
+                returns = rng_ed.normal(0.0005, 0.018, n)
+                closes = base * np.exp(np.cumsum(returns))
+                highs  = closes * (1 + rng_ed.uniform(0.003, 0.025, n))
+                lows   = closes * (1 - rng_ed.uniform(0.003, 0.025, n))
+                opens  = np.roll(closes, 1); opens[0] = base
+                vols   = rng_ed.uniform(3e6, 15e6, n)
+                ohlcv_df = pd.DataFrame({"open":opens,"high":highs,"low":lows,"close":closes,"volume":vols})
+                st.caption("📊 Using simulated price history — connect Polygon API for real data")
+
+            # ── Run the entry decision engine ──
+            def _ema(s, n): return s.ewm(span=n, adjust=False).mean()
+            def _rsi(s, n=14):
+                d = s.diff(); g = d.clip(lower=0); l = -d.clip(upper=0)
+                ag = g.ewm(alpha=1/n, min_periods=n, adjust=False).mean()
+                al = l.ewm(alpha=1/n, min_periods=n, adjust=False).mean()
+                rs = ag / al.replace(0, np.nan)
+                return 100 - (100 / (1 + rs))
+            def _macd(s, f=12, sl=26, sig=9):
+                ml = _ema(s,f) - _ema(s,sl); sl2 = _ema(ml,sig); return ml, sl2, ml-sl2
+            def _atr(df, n=14):
+                hl=df["high"]-df["low"]; hc=(df["high"]-df["close"].shift()).abs(); lc=(df["low"]-df["close"].shift()).abs()
+                tr=pd.concat([hl,hc,lc],axis=1).max(axis=1)
+                return tr.ewm(alpha=1/n, min_periods=n, adjust=False).mean()
+
+            df_ed = ohlcv_df.copy()
+            df_ed["ema9"]  = _ema(df_ed["close"], 9)
+            df_ed["ema20"] = _ema(df_ed["close"], 20)
+            df_ed["ema50"] = _ema(df_ed["close"], 50)
+            df_ed["rsi14"] = _rsi(df_ed["close"])
+            ml, sl2, hist  = _macd(df_ed["close"])
+            df_ed["macd_hist"] = hist
+            df_ed["atr14"] = _atr(df_ed)
+
+            last = df_ed.iloc[-1]
+            prev = df_ed.iloc[-2] if len(df_ed) >= 2 else last
+
+            close   = float(last["close"])
+            ema9_v  = float(last["ema9"])  if pd.notna(last["ema9"])  else None
+            ema20_v = float(last["ema20"]) if pd.notna(last["ema20"]) else None
+            ema50_v = float(last["ema50"]) if pd.notna(last["ema50"]) else None
+            rsi_v   = float(last["rsi14"]) if pd.notna(last["rsi14"]) else None
+            macd_h  = float(last["macd_hist"]) if pd.notna(last["macd_hist"]) else None
+            atr_v   = float(last["atr14"]) if pd.notna(last["atr14"]) else None
+
+            recent  = df_ed.tail(20)
+            support    = float(recent["low"].min())
+            resistance = float(recent["high"].max())
+
+            # Trend state
+            if ema9_v and ema20_v and ema50_v:
+                if close > ema9_v > ema20_v > ema50_v:
+                    trend_state = "BULLISH"
+                    trend_color = "#00ff88"
+                elif close < ema9_v < ema20_v < ema50_v:
+                    trend_state = "BEARISH"
+                    trend_color = "#ff3366"
+                else:
+                    trend_state = "MIXED"
+                    trend_color = "#ffb800"
+            else:
+                trend_state = "UNKNOWN"
+                trend_color = "#94a3b8"
+
+            # Bearish expansion candle
+            bearish_exp = (last["close"] < last["open"] and
+                           (last["open"] - last["close"]) > (prev["high"] - prev["low"]) * 0.6)
+
+            near_support  = abs(close - support) <= max(0.5, (atr_v or 1.0) * 0.35)
+            below_mas     = ema9_v and close < ema9_v and ema20_v and close < ema20_v
+            oversold      = rsi_v and rsi_v < 35
+            not_oversold  = rsi_v and rsi_v > 40
+            macd_bullish  = macd_h and macd_h > 0
+
+            # Setup classification
+            if bearish_exp and below_mas and not_oversold:
+                setup   = "SELLOFF INTO SUPPORT — WATCH"
+                action  = "WAIT"
+                conf    = "HIGH"
+                act_color = "#ffb800"
+                conf_trigger = f"Wait for reclaim of ${round(close + max(0.75,(atr_v or 1)*0.25),2)} or bullish reversal candle near support"
+                invalidation = f"Break and hold below ${round(support - max(0.75,(atr_v or 1)*0.35),2)}"
+                notes = ["Price had a bearish expansion day. Do not buy just because it's down — wait for confirmation."]
+            elif near_support and oversold:
+                setup   = "BOUNCE CANDIDATE"
+                action  = "ADD PARTIAL"
+                conf    = "MEDIUM"
+                act_color = "#00b4ff"
+                conf_trigger = "Bullish reversal candle, intraday reclaim of VWAP, or volume spike"
+                invalidation = f"Exit if price loses ${round(support - max(0.5,(atr_v or 1)*0.25),2)} with no reclaim"
+                notes = ["Use starter size first. Add only after reclaim of nearby resistance."]
+            elif trend_state == "BULLISH" and macd_bullish:
+                setup   = "TREND CONTINUATION"
+                action  = "ADD ON CONFIRMATION"
+                conf    = "MEDIUM"
+                act_color = "#00ff88"
+                conf_trigger = f"Hold above EMA9/EMA20 and break above ${round(resistance,2)}"
+                invalidation = f"Failure back below EMA20 (${round(ema20_v,2) if ema20_v else 'N/A'})"
+                notes = ["Best adds happen on constructive pullbacks or confirmed breakouts — not random chasing."]
+            else:
+                setup   = "NEUTRAL — NO EDGE"
+                action  = "STAY OUT"
+                conf    = "LOW"
+                act_color = "#475569"
+                conf_trigger = "Wait for cleaner support reaction or clear resistance reclaim"
+                invalidation = "No trade if price remains trapped between support and resistance"
+                notes = ["Setup is unclear. Preserve capital."]
+
+            # Bounce targets
+            targets = sorted([x for x in [ema9_v, ema20_v, ema50_v, resistance] if x and x > close])[:3]
+
+        # ── DISPLAY ──
+
+        # Action banner
+        st.markdown(f"""
+        <div style="background:{'rgba(0,255,136,0.08)' if action!='STAY OUT' else 'rgba(71,85,105,0.15)'};
+             border:1px solid {act_color}55;border-radius:10px;padding:18px 24px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                <div>
+                    <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#475569;letter-spacing:0.15em;text-transform:uppercase;">Recommended Action</div>
+                    <div style="font-family:'Orbitron',sans-serif;font-size:1.6rem;font-weight:900;color:{act_color};margin-top:4px;">{action}</div>
+                    <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:#94a3b8;margin-top:4px;">{setup}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#475569;letter-spacing:0.1em;">CONFIDENCE</div>
+                    <div style="font-family:'Orbitron',sans-serif;font-size:1.1rem;color:{act_color};margin-top:4px;">{conf}</div>
+                    <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:{trend_color};margin-top:4px;">{trend_state}</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Key levels metrics
+        lc1, lc2, lc3, lc4, lc5, lc6 = st.columns(6)
+        with lc1: st.metric("Price",      f"${close:.2f}")
+        with lc2: st.metric("Support",    f"${support:.2f}",    f"{'Near' if near_support else f'{abs(close-support):.2f} away'}")
+        with lc3: st.metric("Resistance", f"${resistance:.2f}", f"{((resistance-close)/close*100):.1f}% above")
+        with lc4: st.metric("RSI (14)",   f"{rsi_v:.1f}" if rsi_v else "—",  "Oversold" if oversold else ("Momentum" if rsi_v and rsi_v > 50 else "Neutral"))
+        with lc5: st.metric("MACD Hist",  f"{macd_h:.3f}" if macd_h else "—", "Bullish" if macd_bullish else "Bearish")
+        with lc6: st.metric("ATR (14)",   f"${atr_v:.2f}" if atr_v else "—",  "Volatility")
+
+        st.markdown('<div style="margin-top:16px;"></div>', unsafe_allow_html=True)
+
+        # EMA levels + decision details
+        ec1, ec2 = st.columns(2)
+        with ec1:
+            st.markdown(f"""
+            <div style="background:#0d1120;border:1px solid #1e2a3a;border-radius:8px;padding:16px 18px;">
+                <div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:#00b4ff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">◈ KEY LEVELS</div>
+                <div style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;line-height:2.2;color:#94a3b8;">
+                    EMA9:  <b style="color:{'#00ff88' if ema9_v and close>ema9_v else '#ff3366'};">${ema9_v:.2f if ema9_v else '—'}</b><br>
+                    EMA20: <b style="color:{'#00ff88' if ema20_v and close>ema20_v else '#ff3366'};">${ema20_v:.2f if ema20_v else '—'}</b><br>
+                    EMA50: <b style="color:{'#00ff88' if ema50_v and close>ema50_v else '#ff3366'};">${ema50_v:.2f if ema50_v else '—'}</b><br>
+                    Support: <b style="color:#ffb800;">${support:.2f}</b><br>
+                    Resistance: <b style="color:#8b5cf6;">${resistance:.2f}</b>
+                </div>
+            </div>
+            """.replace(":.2f if", " if").replace("ema9_v:.2f", f"{ema9_v:.2f}" if ema9_v else "—")
+               .replace("ema20_v:.2f", f"{ema20_v:.2f}" if ema20_v else "—")
+               .replace("ema50_v:.2f", f"{ema50_v:.2f}" if ema50_v else "—"), unsafe_allow_html=True)
+
+        with ec2:
+            targets_str = " → ".join([f"${t:.2f}" for t in targets]) if targets else "—"
+            add_low  = round(max(0, support - 0.5), 2)
+            add_high = round(support + 0.5, 2)
+            st.markdown(f"""
+            <div style="background:#0d1120;border:1px solid {act_color}33;border-radius:8px;padding:16px 18px;">
+                <div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:{act_color};letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">◈ TRADE PLAN</div>
+                <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;line-height:2;color:#94a3b8;">
+                    Add Zone: <b style="color:#ffb800;">${add_low} – ${add_high}</b><br>
+                    Targets: <b style="color:#00ff88;">{targets_str}</b><br>
+                    <br>
+                    <b style="color:#00b4ff;">Confirmation:</b><br>
+                    <span style="color:#e2e8f0;">{conf_trigger}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Invalidation warning
+        st.markdown(f"""
+        <div style="background:#1a0d0d;border:1px solid #ff336644;border-radius:8px;padding:14px 18px;margin-top:12px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:#ff3366;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">⚠ INVALIDATION — EXIT IF:</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:600;color:#e2e8f0;">{invalidation}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Notes
+        if notes:
+            st.markdown(f"""
+            <div style="background:#0d1120;border:1px solid #1e2a3a;border-radius:6px;padding:12px 16px;margin-top:12px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:#94a3b8;">
+                📌 {' '.join(notes)}
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Price chart with all levels
+        st.markdown('<div style="margin-top:20px;"></div>', unsafe_allow_html=True)
+        fig_ed = go.Figure()
+        fig_ed.add_trace(go.Candlestick(
+            x=list(range(len(df_ed))),
+            open=df_ed["open"], high=df_ed["high"],
+            low=df_ed["low"],   close=df_ed["close"],
+            name=ed_ticker,
+            increasing_line_color="#00ff88", decreasing_line_color="#ff3366"))
+        if ema9_v:  fig_ed.add_trace(go.Scatter(x=list(range(len(df_ed))), y=df_ed["ema9"],  name="EMA9",  line=dict(color="#ffb800",width=1.5)))
+        if ema20_v: fig_ed.add_trace(go.Scatter(x=list(range(len(df_ed))), y=df_ed["ema20"], name="EMA20", line=dict(color="#00b4ff",width=1.5)))
+        if ema50_v: fig_ed.add_trace(go.Scatter(x=list(range(len(df_ed))), y=df_ed["ema50"], name="EMA50", line=dict(color="#8b5cf6",width=1.5)))
+        fig_ed.add_hline(y=support,    line=dict(color="#ffb800", dash="dot", width=1), annotation_text="SUPPORT",    annotation_font=dict(family="Share Tech Mono",size=9,color="#ffb800"))
+        fig_ed.add_hline(y=resistance, line=dict(color="#8b5cf6", dash="dot", width=1), annotation_text="RESISTANCE", annotation_font=dict(family="Share Tech Mono",size=9,color="#8b5cf6"))
+        fig_ed.update_layout(
+            template="plotly_dark", paper_bgcolor="#060810", plot_bgcolor="#0a0d1a",
+            title=dict(text=f"{ed_ticker} — Entry Decision Chart ({ed_days}d)", font=dict(family="Orbitron",color="#e2e8f0",size=13)),
+            xaxis=dict(gridcolor="#1e2a3a", color="#94a3b8", showticklabels=False, rangeslider=dict(visible=False)),
+            yaxis=dict(gridcolor="#1e2a3a", color="#94a3b8", title="Price"),
+            height=420, margin=dict(t=50,b=30,l=60,r=20),
+            legend=dict(font=dict(family="Share Tech Mono",color="#94a3b8"),bgcolor="#0a0d1a"))
+        st.plotly_chart(fig_ed, use_container_width=True)
+
+    else:
+        # Prompt before analysis
+        st.markdown("""
+        <div style="background:#0d1120;border:1px solid #1e2a3a;border-radius:8px;padding:24px;text-align:center;margin-top:20px;">
+            <div style="font-family:'Orbitron',sans-serif;font-size:1rem;color:#ffb800;margin-bottom:12px;">SELECT A TICKER AND CLICK ANALYZE ENTRY</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:#475569;line-height:2;">
+                This engine answers 4 questions for any ticker:<br>
+                <span style="color:#94a3b8;">① What are the key support and resistance levels?</span><br>
+                <span style="color:#94a3b8;">② Is price near a good add zone?</span><br>
+                <span style="color:#94a3b8;">③ Should I add now, wait for confirmation, or stay out?</span><br>
+                <span style="color:#94a3b8;">④ What would invalidate this trade?</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════
+# TAB 6 — MOBILE + ALERTS
+# ══════════════════════════════════════════════
+with tab8:
     st.markdown('<p style="font-family:\'Orbitron\',sans-serif; font-size:0.9rem; color:#00ff88; letter-spacing:0.08em; margin-bottom:16px;">📱 ACCESS ON PHONE OR IPAD</p>', unsafe_allow_html=True)
     import socket
     try:
@@ -1937,7 +2377,7 @@ with tab7:
 # ══════════════════════════════════════════════
 # TAB 7 — E*TRADE PRO
 # ══════════════════════════════════════════════
-with tab8:
+with tab9:
     st.markdown("""<div style="padding:4px 0 16px 0;">
         <div style="font-family:'Orbitron',sans-serif;font-size:0.9rem;font-weight:700;color:#00b4ff;letter-spacing:0.08em;">E*TRADE PRO API</div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#475569;margin-top:4px;letter-spacing:0.1em;">OAUTH 1.0A · REST API · LIVE QUOTES · ORDER EXECUTION</div></div>""",unsafe_allow_html=True)
