@@ -1552,7 +1552,7 @@ st.markdown('<div style="margin-bottom:10px;"></div>', unsafe_allow_html=True)
 # ─────────────────────────────────────────────
 # TABS
 # ─────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "🎯  WATCHLIST",
     "🔥  MA RECLAIM",
     "📰  SENTIMENT",
@@ -1560,6 +1560,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "📊  BREAKDOWN",
     "🔍  DETAIL",
     "🎯  ENTRY DECISION",
+    "💰  ORDER FLOW",
     "📱  MOBILE + ALERTS",
     "📡  E*TRADE PRO",
 ])
@@ -2310,9 +2311,193 @@ with tab7:
         """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
-# TAB 6 — MOBILE + ALERTS
+# TAB 8 — ORDER FLOW
 # ══════════════════════════════════════════════
 with tab8:
+    st.markdown("""<div style="padding:4px 0 12px 0;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:0.9rem;font-weight:700;color:#ffb800;letter-spacing:0.08em;">💰 OPTIONS ORDER FLOW</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#475569;margin-top:4px;letter-spacing:0.1em;">UNUSUAL ACTIVITY · BLOCK TRADES · SWEEPS · CALL/PUT IMBALANCE</div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Flow generation engine ──
+    def generate_order_flow(tickers, rng_seed=None):
+        """
+        Simulates realistic options order flow:
+        - Block trades (large single orders, $500k+)
+        - Sweeps (aggressive multi-exchange buys)
+        - Unusual activity (OI spike, vol vs OI ratio)
+        - Call/Put side, strike, expiry, premium
+        """
+        rng = np.random.RandomState(rng_seed or int(time.time()) % 99999)
+        flow = []
+        expiries = ["04/25","05/02","05/09","05/16","05/23","06/20","07/18","09/19","01/16/27"]
+        order_types = ["SWEEP","BLOCK","SPLIT","UNUSUAL"]
+        order_weights = [0.35, 0.30, 0.20, 0.15]
+
+        for ticker in tickers:
+            base = UNIVERSE.get(ticker, 100.0)
+            # Generate 0-4 flow events per ticker
+            n_events = rng.choice([0,1,2,3,4], p=[0.3,0.3,0.2,0.15,0.05])
+            for _ in range(n_events):
+                side      = rng.choice(["CALL","PUT"], p=[0.55, 0.45])
+                otype     = rng.choice(order_types, p=order_weights)
+                strike    = round(base * rng.choice([0.85,0.90,0.95,0.97,1.0,1.02,1.05,1.08,1.10,1.15]), 0)
+                expiry    = rng.choice(expiries)
+                premium   = round(rng.uniform(0.30, 18.0), 2)
+                size      = int(rng.choice([50,100,200,300,500,750,1000,1500,2000,3000,5000],
+                               p=[0.15,0.20,0.18,0.12,0.10,0.08,0.07,0.04,0.03,0.02,0.01]))
+                total_val = round(size * premium * 100)
+                is_unusual = total_val > 500000 or otype in ["SWEEP","UNUSUAL"]
+                sentiment  = "BULLISH" if side=="CALL" else "BEARISH"
+                otm_pct    = round((strike - base) / base * 100, 1)
+                aggression = "🔥 AGGRESSIVE" if otype=="SWEEP" else ("⚡ BLOCK" if otype=="BLOCK" else ("🚨 UNUSUAL" if otype=="UNUSUAL" else "SPLIT"))
+
+                flow.append({
+                    "Time":       (datetime.now() - timedelta(minutes=int(rng.uniform(0,390)))).strftime("%H:%M"),
+                    "Ticker":     ticker,
+                    "Side":       side,
+                    "Type":       aggression,
+                    "Strike":     f"${strike:.0f}",
+                    "Expiry":     expiry,
+                    "Premium":    f"${premium:.2f}",
+                    "Size":       f"{size:,}",
+                    "Total $":    total_val,
+                    "OTM %":      f"{otm_pct:+.1f}%",
+                    "Sentiment":  sentiment,
+                    "Unusual":    is_unusual,
+                    "_side":      side,
+                    "_total":     total_val,
+                    "_ticker":    ticker,
+                })
+
+        return sorted(flow, key=lambda x: -x["_total"])
+
+    # Controls
+    fc1, fc2, fc3 = st.columns(3)
+    with fc1:
+        flow_tickers = scan_df["Ticker"].tolist() if len(scan_df) > 0 else list(UNIVERSE.keys())[:20]
+        flow_filter = st.selectbox("Filter by ticker", ["ALL"] + flow_tickers, key="flow_filter")
+    with fc2:
+        flow_side = st.selectbox("Side", ["ALL", "CALL", "PUT"], key="flow_side")
+    with fc3:
+        min_premium = st.selectbox("Min trade value", ["Any", "$100K+", "$250K+", "$500K+", "$1M+"], key="flow_min")
+
+    refresh_flow = st.button("🔄 REFRESH FLOW", use_container_width=True, key="btn_flow_refresh")
+
+    if "flow_data" not in st.session_state or refresh_flow:
+        all_tickers = flow_tickers if flow_filter == "ALL" else [flow_filter]
+        st.session_state.flow_data = generate_order_flow(
+            flow_tickers,
+            rng_seed=int(time.time() / 60) % 99999  # refreshes every minute
+        )
+
+    flow_data = st.session_state.flow_data
+
+    # Apply filters
+    filtered = flow_data.copy()
+    if flow_filter != "ALL":
+        filtered = [f for f in filtered if f["Ticker"] == flow_filter]
+    if flow_side != "ALL":
+        filtered = [f for f in filtered if f["_side"] == flow_side]
+    min_map = {"Any": 0, "$100K+": 100000, "$250K+": 250000, "$500K+": 500000, "$1M+": 1000000}
+    min_val = min_map[min_premium]
+    filtered = [f for f in filtered if f["_total"] >= min_val]
+
+    if not filtered:
+        st.info("No order flow matching filters. Try broadening the filter or refreshing.")
+    else:
+        # ── Summary metrics ──
+        calls = [f for f in filtered if f["_side"] == "CALL"]
+        puts  = [f for f in filtered if f["_side"] == "PUT"]
+        call_prem = sum(f["_total"] for f in calls)
+        put_prem  = sum(f["_total"] for f in puts)
+        total_prem = call_prem + put_prem
+        ratio = call_prem / put_prem if put_prem > 0 else 99
+        unusual = [f for f in filtered if f["Unusual"]]
+
+        sm1, sm2, sm3, sm4, sm5 = st.columns(5)
+        with sm1: st.metric("Total Flow", f"${total_prem/1e6:.1f}M")
+        with sm2: st.metric("Call Premium", f"${call_prem/1e6:.1f}M", f"{call_prem/total_prem*100:.0f}%" if total_prem else "—")
+        with sm3: st.metric("Put Premium", f"${put_prem/1e6:.1f}M", f"{put_prem/total_prem*100:.0f}%" if total_prem else "—")
+        with sm4:
+            ratio_color = "🟢" if ratio > 1.5 else "🔴" if ratio < 0.67 else "🟡"
+            st.metric("Call/Put Ratio", f"{ratio_color} {ratio:.2f}", "Bullish" if ratio > 1.2 else ("Bearish" if ratio < 0.8 else "Neutral"))
+        with sm5: st.metric("Unusual Prints", len(unusual), "🚨 Watch these")
+
+        # ── Call/Put flow bar chart ──
+        by_ticker_calls = {}
+        by_ticker_puts  = {}
+        for f in filtered:
+            t = f["_ticker"]
+            if f["_side"] == "CALL": by_ticker_calls[t] = by_ticker_calls.get(t,0) + f["_total"]
+            else:                    by_ticker_puts[t]  = by_ticker_puts.get(t,0)  + f["_total"]
+
+        all_tks = sorted(set(list(by_ticker_calls.keys()) + list(by_ticker_puts.keys())))
+        if all_tks:
+            fig_flow = go.Figure()
+            fig_flow.add_trace(go.Bar(
+                x=all_tks,
+                y=[by_ticker_calls.get(t,0)/1000 for t in all_tks],
+                name="CALLS", marker_color="#00ff88",
+                text=[f"${by_ticker_calls.get(t,0)/1000:.0f}K" for t in all_tks],
+                textposition="outside", textfont=dict(family="Share Tech Mono", size=8, color="#00ff88")
+            ))
+            fig_flow.add_trace(go.Bar(
+                x=all_tks,
+                y=[-by_ticker_puts.get(t,0)/1000 for t in all_tks],
+                name="PUTS", marker_color="#ff3366",
+                text=[f"${by_ticker_puts.get(t,0)/1000:.0f}K" for t in all_tks],
+                textposition="outside", textfont=dict(family="Share Tech Mono", size=8, color="#ff3366")
+            ))
+            fig_flow.update_layout(
+                template="plotly_dark", paper_bgcolor="#060810", plot_bgcolor="#0a0d1a",
+                barmode="relative", height=300, margin=dict(t=40,b=40,l=60,r=20),
+                title=dict(text="Call vs Put Premium Flow by Ticker ($K)", font=dict(family="Orbitron",size=12,color="#e2e8f0")),
+                xaxis=dict(tickfont=dict(family="Share Tech Mono",size=9), color="#94a3b8"),
+                yaxis=dict(title="Premium ($K)", gridcolor="#1e2a3a", color="#94a3b8", zeroline=True, zerolinecolor="#2d3f55"),
+                legend=dict(font=dict(family="Share Tech Mono",color="#94a3b8"), bgcolor="#0a0d1a"),
+                showlegend=True)
+            st.plotly_chart(fig_flow, use_container_width=True)
+
+        # ── Unusual prints highlighted ──
+        if unusual:
+            st.markdown(f"""<div style="background:#1a0d00;border:1px solid #ffb80044;border-radius:6px;padding:10px 16px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:#ffb800;">
+                🚨 {len(unusual)} UNUSUAL PRINT{"S" if len(unusual)>1 else ""} DETECTED — Large/aggressive orders above $500K
+            </div>""", unsafe_allow_html=True)
+            for f in unusual[:5]:
+                side_color = "#00ff88" if f["_side"] == "CALL" else "#ff3366"
+                st.markdown(f"""
+                <div style="background:#0d1120;border-left:3px solid {side_color};border-radius:0 6px 6px 0;padding:10px 16px;margin-bottom:6px;display:flex;gap:24px;flex-wrap:wrap;font-family:'Share Tech Mono',monospace;font-size:0.65rem;">
+                    <span style="color:{side_color};font-weight:700;">{f['Type']}</span>
+                    <span style="color:#e2e8f0;font-weight:700;">{f['Ticker']}</span>
+                    <span style="color:{side_color};">{f['Side']}</span>
+                    <span style="color:#94a3b8;">{f['Strike']} {f['Expiry']}</span>
+                    <span style="color:#94a3b8;">@{f['Premium']}</span>
+                    <span style="color:#e2e8f0;">×{f['Size']}</span>
+                    <span style="color:#ffb800;font-weight:700;">${f['_total']:,.0f}</span>
+                    <span style="color:#475569;">{f['OTM %']} OTM</span>
+                    <span style="color:#94a3b8;">{f['Time']}</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # ── Full flow tape ──
+        st.markdown('<p style="font-family:\'Share Tech Mono\',monospace;font-size:0.65rem;color:#00b4ff;letter-spacing:0.15em;text-transform:uppercase;margin:16px 0 6px 0;">◈ FULL FLOW TAPE</p>', unsafe_allow_html=True)
+        display_cols = ["Time","Ticker","Side","Type","Strike","Expiry","Premium","Size","Total $","OTM %","Sentiment"]
+        df_flow = pd.DataFrame(filtered)[display_cols + ["_total"]].copy()
+        df_flow["Total $"] = df_flow["_total"].apply(lambda x: f"${x:,.0f}")
+        df_flow = df_flow[display_cols]
+
+        # Color-code with styling
+        def style_flow(row):
+            color = "#00ff8822" if row["Side"] == "CALL" else "#ff336622"
+            return [f"background-color: {color}"] * len(row)
+
+        st.dataframe(df_flow.style.apply(style_flow, axis=1), use_container_width=True, height=400)
+
+# ══════════════════════════════════════════════
+# TAB 6 — MOBILE + ALERTS
+# ══════════════════════════════════════════════
+with tab9:
     st.markdown('<p style="font-family:\'Orbitron\',sans-serif; font-size:0.9rem; color:#00ff88; letter-spacing:0.08em; margin-bottom:16px;">📱 ACCESS ON PHONE OR IPAD</p>', unsafe_allow_html=True)
     import socket
     try:
@@ -2377,7 +2562,7 @@ with tab8:
 # ══════════════════════════════════════════════
 # TAB 7 — E*TRADE PRO
 # ══════════════════════════════════════════════
-with tab9:
+with tab10:
     st.markdown("""<div style="padding:4px 0 16px 0;">
         <div style="font-family:'Orbitron',sans-serif;font-size:0.9rem;font-weight:700;color:#00b4ff;letter-spacing:0.08em;">E*TRADE PRO API</div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#475569;margin-top:4px;letter-spacing:0.1em;">OAUTH 1.0A · REST API · LIVE QUOTES · ORDER EXECUTION</div></div>""",unsafe_allow_html=True)
