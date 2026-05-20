@@ -2840,3 +2840,4 @@ st.markdown(f"""
     <div style="font-family:'Share Tech Mono',monospace; font-size:0.55rem; color:#2d3f55;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S ET')} · {'LIVE DATA' if use_live else 'SIMULATION MODE'} · OPEX: {opex_info['phase']}</div>
 </div>
 """, unsafe_allow_html=True)
+# updated Wed May 20 09:25:29 EDT 2026
