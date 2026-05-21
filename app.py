@@ -1,5 +1,5 @@
 """
-JEG BALLISTIC AI v6 — Gamma Reclaim Engine
+JEG BALLISTIC AI v6 — Gamma Reclaim Engine (Build 2026-05-14)
 Operation: JEG Ballistic AI
 Owner: JEG Securities | Primary User: Everette
 
