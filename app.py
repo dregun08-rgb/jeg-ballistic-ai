@@ -2224,20 +2224,24 @@ with tab7:
         # EMA levels + decision details
         ec1, ec2 = st.columns(2)
         with ec1:
+            ema9_str  = f"${ema9_v:.2f}"  if ema9_v  else "—"
+            ema20_str = f"${ema20_v:.2f}" if ema20_v else "—"
+            ema50_str = f"${ema50_v:.2f}" if ema50_v else "—"
+            ema9_c  = "#00ff88" if ema9_v  and close > ema9_v  else "#ff3366"
+            ema20_c = "#00ff88" if ema20_v and close > ema20_v else "#ff3366"
+            ema50_c = "#00ff88" if ema50_v and close > ema50_v else "#ff3366"
             st.markdown(f"""
             <div style="background:#0d1120;border:1px solid #1e2a3a;border-radius:8px;padding:16px 18px;">
                 <div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:#00b4ff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">◈ KEY LEVELS</div>
                 <div style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;line-height:2.2;color:#94a3b8;">
-                    EMA9:  <b style="color:{'#00ff88' if ema9_v and close>ema9_v else '#ff3366'};">${ema9_v:.2f if ema9_v else '—'}</b><br>
-                    EMA20: <b style="color:{'#00ff88' if ema20_v and close>ema20_v else '#ff3366'};">${ema20_v:.2f if ema20_v else '—'}</b><br>
-                    EMA50: <b style="color:{'#00ff88' if ema50_v and close>ema50_v else '#ff3366'};">${ema50_v:.2f if ema50_v else '—'}</b><br>
+                    EMA9:  <b style="color:{ema9_c};">{ema9_str}</b><br>
+                    EMA20: <b style="color:{ema20_c};">{ema20_str}</b><br>
+                    EMA50: <b style="color:{ema50_c};">{ema50_str}</b><br>
                     Support: <b style="color:#ffb800;">${support:.2f}</b><br>
                     Resistance: <b style="color:#8b5cf6;">${resistance:.2f}</b>
                 </div>
             </div>
-            """.replace(":.2f if", " if").replace("ema9_v:.2f", f"{ema9_v:.2f}" if ema9_v else "—")
-               .replace("ema20_v:.2f", f"{ema20_v:.2f}" if ema20_v else "—")
-               .replace("ema50_v:.2f", f"{ema50_v:.2f}" if ema50_v else "—"), unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
         with ec2:
             targets_str = " → ".join([f"${t:.2f}" for t in targets]) if targets else "—"
@@ -2310,8 +2314,187 @@ with tab7:
         </div>
         """, unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════
-# TAB 8 — ORDER FLOW
+    # ── CHART ANALYSIS SECTION ──
+    st.markdown("---")
+    st.markdown("""<div style="padding:4px 0 12px 0;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:0.85rem;font-weight:700;color:#8b5cf6;letter-spacing:0.08em;">📸 AI CHART ANALYSIS</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:#475569;margin-top:4px;letter-spacing:0.1em;">UPLOAD ANY CHART · AI READS PRICE ACTION · GET ENTRY DECISION</div>
+    </div>""", unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="background:#0d1120;border:1px solid #8b5cf644;border-radius:8px;padding:16px 20px;margin-bottom:16px;font-family:'Share Tech Mono',monospace;font-size:0.63rem;color:#94a3b8;line-height:2;">
+        Upload a screenshot from <b style="color:#8b5cf6;">any platform</b> — TradingView, E*TRADE, Webull, Robinhood, your phone, anything.<br>
+        Works with <span style="color:#00ff88;">any symbol</span> — stocks, ETFs, crypto, anything with a chart.<br>
+        The AI reads: <span style="color:#00ff88;">trend · MAs · support/resistance · RSI · MACD · volume · patterns · candle structure</span><br>
+        Then tells you the <b style="color:#ffb800;">full story of what the chart is saying + a clear entry verdict</b>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Ticker + context input row
+    ui1, ui2 = st.columns([1, 2])
+    with ui1:
+        chart_ticker_input = st.text_input(
+            "Ticker (optional)",
+            placeholder="e.g. ASTS, NVDA, SPY...",
+            key="chart_ticker_input"
+        )
+    with ui2:
+        chart_context = st.text_input(
+            "Context (optional)",
+            placeholder="e.g. Daily chart, thinking of adding, already long 500 shares, looking at 3-month setup...",
+            key="chart_context",
+            label_visibility="collapsed"
+        )
+
+    chart_img = st.file_uploader(
+        "Upload chart screenshot (PNG, JPG, WEBP)",
+        type=["png","jpg","jpeg","webp"],
+        key="chart_upload"
+    )
+    analyze_chart_btn = st.button("🔍 ANALYZE CHART", use_container_width=True, key="btn_chart_analyze")
+
+    if chart_img and analyze_chart_btn:
+        with st.spinner("AI reading your chart..."):
+            import base64
+
+            # Encode image to base64
+            img_bytes = chart_img.read()
+            img_b64   = base64.b64encode(img_bytes).decode("utf-8")
+            img_type  = chart_img.type  # e.g. image/png
+
+            # Build prompt
+            ticker_line = f"Ticker: {chart_ticker_input}\n" if chart_ticker_input else ""
+            context_line = f"\n\nAdditional context from the trader: {ticker_line}{chart_context}" if (chart_ticker_input or chart_context) else ""
+
+            prompt = f"""You are a senior trader and technical analyst at a proprietary trading desk. A trader has uploaded a chart and needs a complete intelligent read — the kind an experienced trader gives when asked "what's this chart telling you?"
+
+Produce your analysis in EXACTLY this style and structure:
+
+**THE STORY** — What phase is this stock in right now? Correction? Recovery? Breakout? Breakdown? Consolidation? Write it conversationally like explaining to a trading partner. What is the chart narrative?
+
+**WHAT I'M SEEING** — Bullet points of the most critical observations: where are the MAs relative to price, what did the recent candles do, what's the structure telling you?
+
+**WHY THIS MOVE MATTERS** — The context. Why is what's happening significant right now? Is this a reclaim attempt? A failed breakout? A base building?
+
+**BULLISH SIGNALS** (only what you actually see):
+* Be specific — "MACD bullish crossover with expanding histogram" not just "MACD bullish"
+* Include RSI level and what it means — e.g. "RSI at 57 → not overheated, room to expand"
+* Note MA positions — e.g. "Price reclaimed 20-day and 50-day, now testing 200-day"
+
+**BEARISH SIGNALS / RISKS** (only what you actually see):
+* What could flip the narrative
+* What resistance is overhead and how significant
+
+**KEY LEVELS** — Be as specific as possible with price numbers visible on the chart:
+Bullish targets: [immediate breakout zone] → [next resistance] → [extended target]
+Critical support: [nearest support] | [stronger support] | [level that damages the setup]
+
+**THE VERDICT** — Pick exactly one:
+✅ BUY NOW — entry zone, why right now, what just changed
+⏳ WAIT FOR CONFIRMATION — exact price level AND condition needed (e.g. "wait for close above X on volume 2x average")
+🔄 WAIT FOR PULLBACK — specific zone to add (e.g. "ideal add zone 83–85 on pullback to reclaim zone")
+❌ STAY OUT — clear reason why this is not the time
+
+**WHAT I'D WATCH NEXT** — The 2-3 specific things that need to happen for the bullish case to play out
+
+**INVALIDATION** — The exact price or condition that means you are wrong and must exit. Be specific.
+
+**STOCK-SPECIFIC RISK NOTE** — How does this stock trade? Volatile, options-heavy, news-driven, retail-dominated? What does that mean for position sizing and stop discipline?
+
+Be direct. Specific price levels. Sound like a real trader not a textbook. No disclaimers.{context_line}"""
+
+            try:
+                resp = requests.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={"Content-Type": "application/json"},
+                    json={
+                        "model": "claude-sonnet-4-6",
+                        "max_tokens": 2000,
+                        "messages": [{
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": img_type,
+                                        "data": img_b64
+                                    }
+                                },
+                                {
+                                    "type": "text",
+                                    "text": prompt
+                                }
+                            ]
+                        }]
+                    },
+                    timeout=45
+                )
+
+                if resp.status_code == 200:
+                    analysis = resp.json()["content"][0]["text"]
+                    st.session_state.chart_analysis = analysis
+                    st.session_state.chart_image_b64 = img_b64
+                    st.session_state.chart_image_type = img_type
+                else:
+                    st.error(f"API error {resp.status_code}: {resp.text[:200]}")
+
+            except Exception as e:
+                st.error(f"Analysis failed: {e}")
+
+    # Display chart + analysis side by side
+    if "chart_analysis" in st.session_state and st.session_state.chart_analysis:
+        st.markdown('<div style="margin-top:16px;"></div>', unsafe_allow_html=True)
+        img_col, analysis_col = st.columns([1, 1])
+
+        with img_col:
+            if "chart_image_b64" in st.session_state:
+                st.markdown('<p style="font-family:\'Share Tech Mono\',monospace;font-size:0.62rem;color:#8b5cf6;letter-spacing:0.1em;">◈ YOUR CHART</p>', unsafe_allow_html=True)
+                st.image(
+                    f"data:{st.session_state.chart_image_type};base64,{st.session_state.chart_image_b64}",
+                    use_container_width=True
+                )
+
+        with analysis_col:
+            st.markdown('<p style="font-family:\'Share Tech Mono\',monospace;font-size:0.62rem;color:#8b5cf6;letter-spacing:0.1em;">◈ AI ANALYSIS</p>', unsafe_allow_html=True)
+
+            # Parse and display analysis with styling
+            analysis_text = st.session_state.chart_analysis
+
+            # Show verdict badge if detected
+            verdict_color = "#94a3b8"
+            verdict_label = "ANALYZING"
+            if "✅ BUY NOW" in analysis_text or "BUY NOW" in analysis_text:
+                verdict_color = "#00ff88"; verdict_label = "✅ BUY NOW"
+            elif "⏳ WAIT FOR CONFIRMATION" in analysis_text or "WAIT FOR CONFIRMATION" in analysis_text:
+                verdict_color = "#ffb800"; verdict_label = "⏳ WAIT FOR CONFIRMATION"
+            elif "❌ STAY OUT" in analysis_text or "STAY OUT" in analysis_text:
+                verdict_color = "#ff3366"; verdict_label = "❌ STAY OUT"
+            elif "🔄 WAIT FOR PULLBACK" in analysis_text or "WAIT FOR PULLBACK" in analysis_text:
+                verdict_color = "#00b4ff"; verdict_label = "🔄 WAIT FOR PULLBACK"
+
+            st.markdown(f"""
+            <div style="background:{verdict_color}11;border:1px solid {verdict_color}44;border-radius:8px;
+                 padding:10px 16px;margin-bottom:12px;font-family:'Orbitron',sans-serif;
+                 font-size:0.85rem;font-weight:700;color:{verdict_color};text-align:center;">
+                {verdict_label}
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown(analysis_text)
+
+        # Clear button
+        if st.button("🗑 Clear Analysis", key="btn_clear_chart"):
+            del st.session_state.chart_analysis
+            if "chart_image_b64" in st.session_state:
+                del st.session_state.chart_image_b64
+            st.rerun()
+
+    elif chart_img and not analyze_chart_btn:
+        # Show image preview while waiting
+        st.image(chart_img, caption="Chart uploaded — click ANALYZE CHART to get AI analysis", use_container_width=True)
+
+
 # ══════════════════════════════════════════════
 with tab8:
     st.markdown("""<div style="padding:4px 0 12px 0;">
